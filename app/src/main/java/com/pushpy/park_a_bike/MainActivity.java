@@ -69,6 +69,12 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * This is the public release branch of the app bike-a-spot
+ * It's the copy submitted to Google play
+ * The main difference between this and the development branch is
+ * that all log calls are removed
+ */
 
 public class MainActivity extends FragmentActivity
         implements
@@ -108,8 +114,8 @@ public class MainActivity extends FragmentActivity
     private FusedLocationProviderClient mLocationClient;
     private Location lastKnownLocation = null;
     private Marker landingSpot, panoramaMarker,searchResultMarker,parkedBikeMarker;
-    private List<Marker> markerList;
-    private List<BikeParking> parkingList;
+    private List<Marker> markerList; //list of parker on display
+    private List<BikeParking> parkingList; //list of location received from query
     private boolean mapCameraMoving=false;
     //Marker Configuration
     private BitmapDescriptor rackMarkerDescripter,parkedBikeDescripter;
@@ -832,8 +838,7 @@ public class MainActivity extends FragmentActivity
                 }
             } else if (resultCode == PlaceAutocomplete.RESULT_ERROR) {
                 Status status = PlaceAutocomplete.getStatus(this, data);
-                // TODO: Handle the error.
-                Log.i("TAG", status.getStatusMessage());
+                //Log.i("TAG", status.getStatusMessage());
 
             } else if (resultCode == RESULT_CANCELED) {
                 // The user canceled the operation.
@@ -903,7 +908,7 @@ public class MainActivity extends FragmentActivity
                     //Update the location of last update
                     locationOfLastUpdate    =position_;
                     //DEBUG
-                    Toast.makeText(MainActivity.this, "Download completed", Toast.LENGTH_SHORT).show();
+                    //Toast.makeText(MainActivity.this, "Download completed", Toast.LENGTH_SHORT).show();
                     //Refresh the marker list
                     for( Marker mk : markerList)
                         mk.remove();
@@ -963,10 +968,10 @@ public class MainActivity extends FragmentActivity
                 } catch (AmazonServiceException e){
                     Toast.makeText(MainActivity.this, "We have problem talking to amazon", Toast.LENGTH_SHORT).show();
                 } catch (AmazonClientException e) {
-                    Log.e("", "Connection issue", e);
+                    //Log.e("", "Connection issue", e);
                 } catch(Exception e) {
                     Toast.makeText(MainActivity.this, "Unknown issues encountered", Toast.LENGTH_SHORT).show();
-                    Log.e("", "Unknown issue", e);
+                    //Log.e("", "Unknown issue", e);
                 }finally {
                     //Create the message to the handler
                     Message greenLight=new Message();
