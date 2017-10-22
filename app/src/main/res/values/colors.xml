@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#00a04b</color>
+    <color name="colorPrimaryDark">#00803b</color>
+    <color name="colorAccent">#FF4081</color>
+    <color name="interface_purple">#87008b</color>
+    <color name="interface_blue">#004cbf</color>
+    <color name="interface_green">#00a04b</color>
+    <color name="interface_white">#ffffff</color>
+</resources>

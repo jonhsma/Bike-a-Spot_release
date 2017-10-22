@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Bike-a-Spot</string>
+    <string name="title_activity_main">Bike-a-Spot</string>
+    <string name="searchButtonText">Search</string>
+    <string name="parkButtonText">Park Bike</string>
+    <string name="parkButtonRetrieveText">Leave</string>
+    <string name="parked_latitude_key">parkedLat</string>
+    <string name="parked_longitude_key">parkedLng</string>
+    <string name="parked_bike_pref_key">com.pushpy.park-a-bike.parked</string>
+</resources>
