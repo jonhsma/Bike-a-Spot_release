@@ -69,7 +69,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-
+/**
+ * This is the development branch of the app Park-a-Bike
+ * Log calls and debugging options/echos are available
+ */
 public class MainActivity extends FragmentActivity
         implements
         OnMapReadyCallback
