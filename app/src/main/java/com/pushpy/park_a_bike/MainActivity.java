@@ -88,6 +88,7 @@ public class MainActivity extends FragmentActivity
     //0 :   nearby parking space search
     //1 :   planning (Street view filling upper half)
     //2 :   destination search (No street view)
+    //3 :   Parking search mode allowing for manual location
     private int state = 0;
 
     //Some state frags
@@ -215,15 +216,21 @@ public class MainActivity extends FragmentActivity
             @Override
             public void onClick(View view) {
                 if(parkedLocation==null && mMap!=null && mLocationPermissionGranted){
-                    boolean saveSuccess=parkedBikeManager.saveLocation(new LatLng(lastKnownLocation.getLatitude(),lastKnownLocation.getLongitude()));
+                    boolean saveSuccess;
+                    if(state!=3) {
+                        saveSuccess = parkedBikeManager.saveLocation(mMap.getCameraPosition().target);
+                    }else{
+                        saveSuccess = parkedBikeManager.saveLocation(new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude()));
+                    }
                     if(saveSuccess) {
                         //Save the location
-                        parkedLocation = new LatLng(lastKnownLocation.getLatitude(),lastKnownLocation.getLongitude());
+                        parkedLocation = parkedBikeManager.retrieveLocation();
                         parkButton.setText(getText(R.string.parkButtonRetrieveText));
 
                         //update the marker
                         parkedBikeMarker.setPosition(parkedLocation);
                         parkedBikeMarker.setVisible(true);
+                        parkedBikeMarker.setAlpha(1.0f);
                     }
                 }else{
                     parkedBikeManager.saveLocation((float)parkedBikeManager.NO_PARKED_BIKE_LOCATION);
@@ -231,21 +238,24 @@ public class MainActivity extends FragmentActivity
                     parkedBikeMarker.setVisible(false);
                     parkButton.setText(getText(R.string.parkButtonText));
                 }
+                if(state==3){
+                    setMode_Park();
+                }
+            }
+        });
+        parkButton.setOnLongClickListener(new View.OnLongClickListener(){
+            @Override
+            public boolean onLongClick(View view){
+                if(parkedLocation==null) {
+                    parkedBikeMarker.setVisible(true);
+                    setMode_ParkSelect();
+                }
+                return false;
             }
         });
         /**
-         * Layout configuration postponed to when the map and streetviews are ready
-        //Configure the layout
-        switch (state) {
-            case 0:
-                setMode_Park();
-                break;
-            case 1:
-                setMode_Plan(streetViewPosition);
-                break;
-            case 2:
-                setMode_search(searchResultPosition,15);
-        }*/
+         * Layout configuration (setMode_something) postponed to when the map and streetviews are ready
+        */
 
         //Sensors
         try {
@@ -327,6 +337,10 @@ public class MainActivity extends FragmentActivity
         }
     }
 
+    /**
+     *  Functions/Methods below set the the app into different operating modes
+     */
+
     private void setMode_Park() {
         //Attach the placeAutoComplete fragment
         //Commented out as the map will never be replaced
@@ -387,6 +401,49 @@ public class MainActivity extends FragmentActivity
 
         }
     }
+
+    private void setMode_ParkSelect() {
+
+
+        //Attach the right fragment
+        Fragment currFrag = getFragmentManager().findFragmentById(R.id.streetViewFrame);
+        if (currFrag != null && streetViewModule != null && currFrag != streetViewModule) {
+            FragmentManager currFM = getFragmentManager();
+            android.app.FragmentTransaction currFT = currFM.beginTransaction();
+            currFT.attach(streetViewModule)
+                    .detach(currFrag)
+                    .commit();
+        }
+        //Layout
+        Point pnt1 = new Point();
+        getWindowManager().getDefaultDisplay().getSize(pnt1);
+        mapFrame.setLayoutParams(new LinearLayout.LayoutParams(pnt1.x, (int) Math.round(pnt1.y * 0.375)));
+        streetViewFrame.setLayoutParams(new LinearLayout.LayoutParams(pnt1.x, (int) Math.round(pnt1.y * 0.475)));
+        buttonBar.setLayoutParams(new LinearLayout.LayoutParams(pnt1.x, (int) Math.round(pnt1.y * 0.1)));
+        //Setting the sizes of the individual buttons
+        searchButton.setLayoutParams(new LinearLayout.LayoutParams((int) Math.round(pnt1.x*0.5), (int) Math.round(pnt1.y * 0.1)));
+        parkButton.setLayoutParams(new LinearLayout.LayoutParams((int) Math.round(pnt1.x*0.5), (int) Math.round(pnt1.y * 0.1)));
+        searchButton.setTextSize(TypedValue.COMPLEX_UNIT_PX,Math.round(pnt1.y * 0.1*textRatio));
+        parkButton.setTextSize(TypedValue.COMPLEX_UNIT_PX,Math.round(pnt1.y * 0.1*textRatio));
+
+
+        //Variables
+        state = 3;
+
+        //Configure the street view
+        if (mMap != null) {
+            try {
+                mStreetViewPanorama.setPosition(mMap.getCameraPosition().target);
+            } catch (Exception e) {
+                Toast.makeText(MainActivity.this, "We can't quite get there", Toast.LENGTH_SHORT).show();
+            }
+        }
+
+        //Configure the map--show the parking marker
+        parkedBikeMarker.setVisible(true);
+        parkedBikeMarker.setAlpha(0.3f);
+    }
+
 
     private void setMode_Plan(int subState) {
         //Attach the right fragment
@@ -652,8 +709,14 @@ public class MainActivity extends FragmentActivity
             @Override
             public void onStreetViewPanoramaChange(StreetViewPanoramaLocation streetViewPanoramaLocation) {
                 streetViewPosition = streetViewPanoramaLocation.position;
-                panoramaMarker.setVisible(true);
-                panoramaMarker.setPosition(streetViewPosition);
+                if(state==1){
+                    panoramaMarker.setVisible(true);
+                    panoramaMarker.setPosition(streetViewPosition);
+                }else if(state==3){
+                    //Bike parks at the location of the street view camera
+                    parkedBikeMarker.setPosition(streetViewPosition);
+                }
+
             }
         });
 
@@ -746,6 +809,9 @@ public class MainActivity extends FragmentActivity
                     case 1:
                         mStreetViewPanorama.setPosition(latLng);
                         break;
+                    case 3:
+                        mStreetViewPanorama.setPosition(latLng);
+                        break;
                     case 2:
                         setMode_Plan(latLng);
                 }
@@ -781,10 +847,15 @@ public class MainActivity extends FragmentActivity
                     case 2:
                         setMode_Plan(marker.getPosition());
                         mStreetViewPanorama.setPosition(marker.getPosition());
+                        break;
+                    case 3:
+                        mStreetViewPanorama.setPosition(marker.getPosition());
+                        break;
                 }
                 return false;
             }
         });
+
 
 
         //Set the layout mode
@@ -798,6 +869,9 @@ public class MainActivity extends FragmentActivity
                 break;
             case 2:
                 setMode_search(searchResultPosition,15);
+                break;
+            case 3:
+                setMode_ParkSelect();
         }
 
     }
@@ -807,6 +881,11 @@ public class MainActivity extends FragmentActivity
     public void onBackPressed(){
         if(state==1){
             setMode_search(mMap.getCameraPosition().target,mMap.getCameraPosition().zoom);
+        }else if(state==3){
+            setMode_Park();
+            if(parkedBikeMarker!=null) {
+                parkedBikeMarker.setVisible(false);
+            }
         }else{
             super.onBackPressed();
         }
