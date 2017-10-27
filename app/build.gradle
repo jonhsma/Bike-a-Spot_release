@@ -4,7 +4,7 @@ android {
     compileSdkVersion 26
     buildToolsVersion "26.0.0"
     defaultConfig {
-        applicationId 'ma.jon.bike_a_spot'
+        applicationId 'com.pushpy.park_a_bike'
         minSdkVersion 15
         targetSdkVersion 10
         versionCode 1
