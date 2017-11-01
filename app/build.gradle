@@ -1,6 +1,14 @@
 apply plugin: 'com.android.application'
 
 android {
+    signingConfigs {
+        release_signing_config {
+            keyAlias 'KeyForSingedRelease'
+            keyPassword 'tsrifotyek'
+            storeFile file('C:/Users/Jonathan/Other Than Work/I_needa_park_my_bike/AndroidAppKey/testkey.jks')
+            storePassword 'dlihcniarbtsrif'
+        }
+    }
     compileSdkVersion 26
     buildToolsVersion "26.0.0"
     defaultConfig {
@@ -15,6 +23,7 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release_signing_config
         }
     }
     productFlavors {
