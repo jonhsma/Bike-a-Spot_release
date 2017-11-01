@@ -13,6 +13,7 @@
 
     SHA-1 certificate fingerprint:
     19:A8:D3:6B:9C:2F:50:B2:96:21:9C:70:90:33:CF:B8:1B:45:98:41
+    This key only works for debug variant.
 
     Alternatively, follow the directions here:
     https://developers.google.com/maps/documentation/android/start#get-key
