@@ -3,6 +3,9 @@ apply plugin: 'com.android.application'
 android {
     signingConfigs {
         config {
+            //Signing config is deliberately missed out in the release repository.
+            //Please contact Jonathan through jonathan@jon.ma if you're interested in
+            //creating a signed release
         }
     }
     compileSdkVersion 26
