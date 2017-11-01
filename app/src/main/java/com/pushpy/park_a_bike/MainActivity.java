@@ -1,5 +1,6 @@
 package com.pushpy.park_a_bike;
 
+import android.Manifest;
 import android.app.Fragment;
 import android.app.FragmentManager;
 import android.content.Context;
@@ -26,6 +27,7 @@ import android.util.TypedValue;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
@@ -115,12 +117,19 @@ public class MainActivity extends FragmentActivity
     private List<Marker> markerList;
     private List<BikeParking> parkingList;
     private boolean mapCameraMoving=false;
+    //Orientation switch
+    private ImageView   compass;//to be initialized after map is ready
+    public  boolean orientationTrackingAllowed=true;
+
+
     //Marker Configuration
     private BitmapDescriptor rackMarkerDescripter,parkedBikeDescripter;
     private final int RACK_MARKER_BITMAP_ID =R.drawable.rack_u;
     private final int PARKED_MARKER_BITMAP_ID=R.drawable.parked;
     private final int STREETVIEW_MARKER_BITMAP_ID =R.drawable.explorer;
     private final int SEARCH_DEST_MARKER_BITMAP_ID =R.drawable.destination;
+
+
     //Parked bike
     private ParkedBikeManager   parkedBikeManager;
     private LatLng              parkedLocation=null;
@@ -621,7 +630,7 @@ public class MainActivity extends FragmentActivity
     @Override
     public void onSensorChanged(SensorEvent event) {
 
-        if(state==0&&mMap!=null&&localField!=null) {
+        if(state==0&&mMap!=null&&localField!=null&&orientationTrackingAllowed) {
             if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD && !mapCameraMoving) {
                 SensorManager.getRotationMatrixFromVector(
                         phoneRM, event.values);
@@ -698,7 +707,8 @@ public class MainActivity extends FragmentActivity
                     .title("Where I parked my bike"));
             parkedBikeMarker.setVisible(false);
         }
-
+        //Initilize the compass
+        compass = (ImageView) mapFrame.findViewWithTag("GoogleMapCompass");
 
 
         //What happens when the position of the camera is street view changes
@@ -745,7 +755,7 @@ public class MainActivity extends FragmentActivity
                 final double lngFactor = Math.cos((camPos.latitude) / 2);
                 //Get the current location
                 if (ContextCompat.checkSelfPermission(MainActivity.this.getApplicationContext(),
-                        android.Manifest.permission.ACCESS_FINE_LOCATION)
+                        Manifest.permission.ACCESS_FINE_LOCATION)
                         == PackageManager.PERMISSION_GRANTED) {
                     mLocationClient.getLastLocation().addOnSuccessListener(MainActivity.this, new OnSuccessListener<Location>() {
                         @Override
@@ -850,6 +860,13 @@ public class MainActivity extends FragmentActivity
                         break;
                 }
                 return false;
+            }
+        });
+
+        //Enable/disable orientation tracking with the compass
+        compass.setOnClickListener(new View.OnClickListener(){
+            @Override public void onClick(final View v){
+                orientationTrackingAllowed=!orientationTrackingAllowed;
             }
         });
 
