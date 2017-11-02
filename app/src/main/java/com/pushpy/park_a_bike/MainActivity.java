@@ -136,9 +136,15 @@ public class MainActivity extends FragmentActivity
 
     //Sensors
     private GeomagneticField    localField;
-    private float[]  phoneRM    =   new float[16];
+    private float[]     phoneRM     =   new float[16];
+    private float[]     gravityVector =   new float[3];
     private SensorManager   sensorManager;//=(SensorManager) getSystemService(SENSOR_SERVICE);
     private Sensor          magSensor;//=sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+    private Sensor          gravitySensor;//=sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+    private List<Double>    orientationHistory;
+    private double          currentAverage=0;
+    //Orientation time series weight decay constant
+    double r=0.97;
 
     //Amazon interface
     CognitoCachingCredentialsProvider credentialsProvider;
@@ -266,7 +272,8 @@ public class MainActivity extends FragmentActivity
         //Sensors
         try {
             sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-            magSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+            magSensor       =   sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+            gravitySensor   =   sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         }catch(Exception e){
             e.printStackTrace();
         }
@@ -279,7 +286,15 @@ public class MainActivity extends FragmentActivity
     protected void onResume(){
         super.onResume();
         //Register the Sensors
-        sensorManager.registerListener(this,magSensor,SensorManager.SENSOR_DELAY_NORMAL);
+        sensorManager.registerListener(this,magSensor,SensorManager.SENSOR_DELAY_GAME);
+        sensorManager.registerListener(this,gravitySensor,SensorManager.SENSOR_DELAY_GAME);
+
+        //Initiate the orientation history
+        orientationHistory  =   new LinkedList<Double>();
+        //Using linked list as what I'm doing is essentially rotating the list forward
+        //Using ArrayList results in copying the whole array over and over
+
+
         //See if the the user has a parked bike
         parkedLocation=parkedBikeManager.retrieveLocation();
 
@@ -312,6 +327,7 @@ public class MainActivity extends FragmentActivity
 
         //Stop receiving sensor update
         sensorManager.unregisterListener(this);
+        orientationHistory.clear();
 
     }
 
@@ -630,19 +646,62 @@ public class MainActivity extends FragmentActivity
     @Override
     public void onSensorChanged(SensorEvent event) {
 
+        //Size of the orientation queue
+        int oriHisSize=50;
+
         if(state==0&&mMap!=null&&localField!=null&&orientationTrackingAllowed) {
             if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD && !mapCameraMoving) {
-                SensorManager.getRotationMatrixFromVector(
-                        phoneRM, event.values);
+                SensorManager.getRotationMatrix(
+                        phoneRM, null, gravityVector,event.values);
                 float[] orientation = new float[3];
                 SensorManager.getOrientation(phoneRM, orientation);
-                float bearing = (float) (Math.toDegrees(orientation[0]) + localField.getDeclination());
+                float bearing = (float) (Math.toDegrees(orientation[0])+ localField.getDeclination());
+
+                //Allow the averaging to work safely as one goes between +-180 degrees
+                while(bearing-currentAverage>180)
+                    bearing -= 360;
+                while(bearing-currentAverage<-180)
+                    bearing+=360;
+
+                //Append the new bearing to the de facto queue
+                orientationHistory.add((double)bearing);
+
+                //Put some parameters into variables so the same thing isn't done twice.
+                int     oriHisCurrSize = orientationHistory.size();
+                double  historyTotalWeight   =   ((1-Math.pow(r,oriHisCurrSize))/(1-r));
+
+                //Queue operations
+                if(oriHisCurrSize>oriHisSize) {
+                    //Each element has a weight of r^(N-n) where n is the position (0 to N-1, 0 is the oldest)
+
+                    //subtract the weighted value of the oldest element
+                    currentAverage  -=  orientationHistory.remove(0)/historyTotalWeight*Math.pow(r,oriHisCurrSize-1);
+                    //Since each of the remaining elements is older by on step, each of them should be multiplied by r
+                    //which is the same as multiplying the remainder of the average by r
+                    currentAverage*=r;
+                    //Add the new entry with it's proper weight
+                    currentAverage  +=  (double) bearing/historyTotalWeight;
+
+                }else if (oriHisCurrSize>1){
+                    currentAverage   =  (currentAverage*(1-Math.pow(r,oriHisCurrSize-1))/(1-r)*r+ bearing)/historyTotalWeight;
+                }else{
+                    currentAverage=bearing;
+                }
+
+                //Primitive but funny debug technique
+                //parkButton.setText((String.valueOf(currentAverage)));
+                //searchButton.setText((String.valueOf(bearing)));
+
                 if (state == 0) {
                     CameraPosition currPos = mMap.getCameraPosition();
-                    CameraPosition pos = CameraPosition.builder(currPos).bearing(bearing).build();
+                    CameraPosition pos = CameraPosition.builder(currPos).bearing((float)currentAverage).build();
                     mMap.moveCamera(CameraUpdateFactory.newCameraPosition(pos));
                 }
             }
+        }
+
+        if(event.sensor.getType()==Sensor.TYPE_ACCELEROMETER){
+            gravityVector =event.values;
         }
 
     }
