@@ -229,8 +229,8 @@ public class MainActivity extends FragmentActivity
             public void onClick(View view) {
                 if(parkedLocation==null && mMap!=null && mLocationPermissionGranted){
                     boolean saveSuccess;
-                    if(state!=3) {
-                        saveSuccess = parkedBikeManager.saveLocation(mMap.getCameraPosition().target);
+                    if(state==3) {
+                        saveSuccess = parkedBikeManager.saveLocation(parkedBikeMarker.getPosition());
                     }else{
                         saveSuccess = parkedBikeManager.saveLocation(new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude()));
                     }
@@ -443,8 +443,8 @@ public class MainActivity extends FragmentActivity
         streetViewFrame.setLayoutParams(new LinearLayout.LayoutParams(pnt1.x, (int) Math.round(pnt1.y * 0.475)));
         buttonBar.setLayoutParams(new LinearLayout.LayoutParams(pnt1.x, (int) Math.round(pnt1.y * 0.1)));
         //Setting the sizes of the individual buttons
-        searchButton.setLayoutParams(new LinearLayout.LayoutParams((int) Math.round(pnt1.x*0.5), (int) Math.round(pnt1.y * 0.1)));
-        parkButton.setLayoutParams(new LinearLayout.LayoutParams((int) Math.round(pnt1.x*0.5), (int) Math.round(pnt1.y * 0.1)));
+        searchButton.setLayoutParams(new LinearLayout.LayoutParams((int) Math.round(pnt1.x*0.0), (int) Math.round(pnt1.y * 0.1)));
+        parkButton.setLayoutParams(new LinearLayout.LayoutParams((int) Math.round(pnt1.x*1.0), (int) Math.round(pnt1.y * 0.1)));
         searchButton.setTextSize(TypedValue.COMPLEX_UNIT_PX,Math.round(pnt1.y * 0.1*textRatio));
         parkButton.setTextSize(TypedValue.COMPLEX_UNIT_PX,Math.round(pnt1.y * 0.1*textRatio));
 
