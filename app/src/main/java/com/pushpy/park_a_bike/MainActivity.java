@@ -1,5 +1,6 @@
 package com.pushpy.park_a_bike;
 
+import android.Manifest;
 import android.app.Fragment;
 import android.app.FragmentManager;
 import android.content.Context;
@@ -26,6 +27,7 @@ import android.util.TypedValue;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
@@ -118,21 +120,34 @@ public class MainActivity extends FragmentActivity
     private List<Marker> markerList; //list of parker on display
     private List<BikeParking> parkingList; //list of location received from query
     private boolean mapCameraMoving=false;
+    //Orientation switch
+    private ImageView   compass;//to be initialized after map is ready
+    public  boolean orientationTrackingAllowed=true;
+
+
     //Marker Configuration
     private BitmapDescriptor rackMarkerDescripter,parkedBikeDescripter;
     private final int RACK_MARKER_BITMAP_ID =R.drawable.rack_u;
     private final int PARKED_MARKER_BITMAP_ID=R.drawable.parked;
     private final int STREETVIEW_MARKER_BITMAP_ID =R.drawable.explorer;
     private final int SEARCH_DEST_MARKER_BITMAP_ID =R.drawable.destination;
+
+
     //Parked bike
     private ParkedBikeManager   parkedBikeManager;
     private LatLng              parkedLocation=null;
 
     //Sensors
     private GeomagneticField    localField;
-    private float[]  phoneRM    =   new float[16];
+    private float[]     phoneRM     =   new float[16];
+    private float[]     gravityVector =   new float[3];
     private SensorManager   sensorManager;//=(SensorManager) getSystemService(SENSOR_SERVICE);
     private Sensor          magSensor;//=sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+    private Sensor          gravitySensor;//=sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+    private List<Double>    orientationHistory;
+    private double          currentAverage=0;
+    //Orientation time series weight decay constant
+    double r=0.97;
 
     //Amazon interface
     CognitoCachingCredentialsProvider credentialsProvider;
@@ -217,8 +232,8 @@ public class MainActivity extends FragmentActivity
             public void onClick(View view) {
                 if(parkedLocation==null && mMap!=null && mLocationPermissionGranted){
                     boolean saveSuccess;
-                    if(state!=3) {
-                        saveSuccess = parkedBikeManager.saveLocation(mMap.getCameraPosition().target);
+                    if(state==3) {
+                        saveSuccess = parkedBikeManager.saveLocation(parkedBikeMarker.getPosition());
                     }else{
                         saveSuccess = parkedBikeManager.saveLocation(new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude()));
                     }
@@ -260,7 +275,8 @@ public class MainActivity extends FragmentActivity
         //Sensors
         try {
             sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-            magSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+            magSensor       =   sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+            gravitySensor   =   sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         }catch(Exception e){
             e.printStackTrace();
         }
@@ -273,7 +289,15 @@ public class MainActivity extends FragmentActivity
     protected void onResume(){
         super.onResume();
         //Register the Sensors
-        sensorManager.registerListener(this,magSensor,SensorManager.SENSOR_DELAY_NORMAL);
+        sensorManager.registerListener(this,magSensor,SensorManager.SENSOR_DELAY_GAME);
+        sensorManager.registerListener(this,gravitySensor,SensorManager.SENSOR_DELAY_GAME);
+
+        //Initiate the orientation history
+        orientationHistory  =   new LinkedList<Double>();
+        //Using linked list as what I'm doing is essentially rotating the list forward
+        //Using ArrayList results in copying the whole array over and over
+
+
         //See if the the user has a parked bike
         parkedLocation=parkedBikeManager.retrieveLocation();
 
@@ -306,6 +330,7 @@ public class MainActivity extends FragmentActivity
 
         //Stop receiving sensor update
         sensorManager.unregisterListener(this);
+        orientationHistory.clear();
 
     }
 
@@ -421,8 +446,8 @@ public class MainActivity extends FragmentActivity
         streetViewFrame.setLayoutParams(new LinearLayout.LayoutParams(pnt1.x, (int) Math.round(pnt1.y * 0.475)));
         buttonBar.setLayoutParams(new LinearLayout.LayoutParams(pnt1.x, (int) Math.round(pnt1.y * 0.1)));
         //Setting the sizes of the individual buttons
-        searchButton.setLayoutParams(new LinearLayout.LayoutParams((int) Math.round(pnt1.x*0.5), (int) Math.round(pnt1.y * 0.1)));
-        parkButton.setLayoutParams(new LinearLayout.LayoutParams((int) Math.round(pnt1.x*0.5), (int) Math.round(pnt1.y * 0.1)));
+        searchButton.setLayoutParams(new LinearLayout.LayoutParams((int) Math.round(pnt1.x*0.0), (int) Math.round(pnt1.y * 0.1)));
+        parkButton.setLayoutParams(new LinearLayout.LayoutParams((int) Math.round(pnt1.x*1.0), (int) Math.round(pnt1.y * 0.1)));
         searchButton.setTextSize(TypedValue.COMPLEX_UNIT_PX,Math.round(pnt1.y * 0.1*textRatio));
         parkButton.setTextSize(TypedValue.COMPLEX_UNIT_PX,Math.round(pnt1.y * 0.1*textRatio));
 
@@ -624,19 +649,62 @@ public class MainActivity extends FragmentActivity
     @Override
     public void onSensorChanged(SensorEvent event) {
 
-        if(state==0&&mMap!=null&&localField!=null) {
+        //Size of the orientation queue
+        int oriHisSize=50;
+
+        if(state==0&&mMap!=null&&localField!=null&&orientationTrackingAllowed) {
             if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD && !mapCameraMoving) {
-                SensorManager.getRotationMatrixFromVector(
-                        phoneRM, event.values);
+                SensorManager.getRotationMatrix(
+                        phoneRM, null, gravityVector,event.values);
                 float[] orientation = new float[3];
                 SensorManager.getOrientation(phoneRM, orientation);
-                float bearing = (float) (Math.toDegrees(orientation[0]) + localField.getDeclination());
+                float bearing = (float) (Math.toDegrees(orientation[0])+ localField.getDeclination());
+
+                //Allow the averaging to work safely as one goes between +-180 degrees
+                while(bearing-currentAverage>180)
+                    bearing -= 360;
+                while(bearing-currentAverage<-180)
+                    bearing+=360;
+
+                //Append the new bearing to the de facto queue
+                orientationHistory.add((double)bearing);
+
+                //Put some parameters into variables so the same thing isn't done twice.
+                int     oriHisCurrSize = orientationHistory.size();
+                double  historyTotalWeight   =   ((1-Math.pow(r,oriHisCurrSize))/(1-r));
+
+                //Queue operations
+                if(oriHisCurrSize>oriHisSize) {
+                    //Each element has a weight of r^(N-n) where n is the position (0 to N-1, 0 is the oldest)
+
+                    //subtract the weighted value of the oldest element
+                    currentAverage  -=  orientationHistory.remove(0)/historyTotalWeight*Math.pow(r,oriHisCurrSize-1);
+                    //Since each of the remaining elements is older by on step, each of them should be multiplied by r
+                    //which is the same as multiplying the remainder of the average by r
+                    currentAverage*=r;
+                    //Add the new entry with it's proper weight
+                    currentAverage  +=  (double) bearing/historyTotalWeight;
+
+                }else if (oriHisCurrSize>1){
+                    currentAverage   =  (currentAverage*(1-Math.pow(r,oriHisCurrSize-1))/(1-r)*r+ bearing)/historyTotalWeight;
+                }else{
+                    currentAverage=bearing;
+                }
+
+                //Primitive but funny debug technique
+                //parkButton.setText((String.valueOf(currentAverage)));
+                //searchButton.setText((String.valueOf(bearing)));
+
                 if (state == 0) {
                     CameraPosition currPos = mMap.getCameraPosition();
-                    CameraPosition pos = CameraPosition.builder(currPos).bearing(bearing).build();
+                    CameraPosition pos = CameraPosition.builder(currPos).bearing((float)currentAverage).build();
                     mMap.moveCamera(CameraUpdateFactory.newCameraPosition(pos));
                 }
             }
+        }
+
+        if(event.sensor.getType()==Sensor.TYPE_ACCELEROMETER){
+            gravityVector =event.values;
         }
 
     }
@@ -701,7 +769,8 @@ public class MainActivity extends FragmentActivity
                     .title("Where I parked my bike"));
             parkedBikeMarker.setVisible(false);
         }
-
+        //Initilize the compass
+        compass = (ImageView) mapFrame.findViewWithTag("GoogleMapCompass");
 
 
         //What happens when the position of the camera is street view changes
@@ -748,7 +817,7 @@ public class MainActivity extends FragmentActivity
                 final double lngFactor = Math.cos((camPos.latitude) / 2);
                 //Get the current location
                 if (ContextCompat.checkSelfPermission(MainActivity.this.getApplicationContext(),
-                        android.Manifest.permission.ACCESS_FINE_LOCATION)
+                        Manifest.permission.ACCESS_FINE_LOCATION)
                         == PackageManager.PERMISSION_GRANTED) {
                     mLocationClient.getLastLocation().addOnSuccessListener(MainActivity.this, new OnSuccessListener<Location>() {
                         @Override
@@ -853,6 +922,13 @@ public class MainActivity extends FragmentActivity
                         break;
                 }
                 return false;
+            }
+        });
+
+        //Enable/disable orientation tracking with the compass
+        compass.setOnClickListener(new View.OnClickListener(){
+            @Override public void onClick(final View v){
+                orientationTrackingAllowed=!orientationTrackingAllowed;
             }
         });
 
