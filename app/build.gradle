@@ -15,8 +15,8 @@ android {
         applicationId 'com.pushpy.park_a_bike'
         minSdkVersion 15
         targetSdkVersion 15
-        versionCode 3
-        versionName "1.0.2.1"
+        versionCode 4
+        versionName "1.0.3.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
