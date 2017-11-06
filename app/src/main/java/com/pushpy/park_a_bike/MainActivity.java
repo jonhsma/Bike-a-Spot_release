@@ -164,12 +164,12 @@ public class MainActivity extends FragmentActivity
     LinearLayout    buttonBar;
     Button          searchButton, parkButton;
     //Visuals
-    public static float   textRatio=0.6f;
+    public static float   textRatio=0.45f;
     //Fonts
-    /**Courtesy to Ryan Welch
-     * (https://www.behance.net/gallery/9096795/Brassie-Regular-Free-Font).
+    /**Courtesy to Kevin King
+     * (www.kingthingsfonts.co.uk) .
      */
-    public static String BUTTON_TYPEFACE_PATH = "fonts/Brassie-Regular.otf";
+    public static String BUTTON_TYPEFACE_PATH = "fonts/KingClarity_1_1.ttf";
 
 
     @Override
