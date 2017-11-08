@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Point;
+import android.graphics.Typeface;
 import android.hardware.GeomagneticField;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -160,13 +161,18 @@ public class MainActivity extends FragmentActivity
     Handler handler;    //For general purpose
 
 
-    //Layout elements
+    //Layout
+    //Elements
     FrameLayout     mapFrame, streetViewFrame;
     LinearLayout    buttonBar;
     Button          searchButton, parkButton;
-
     //Visuals
-    public static float   textRatio=0.3f;
+    public static float   textRatio=0.45f;
+    //Fonts
+    /**Courtesy to Kevin King
+     * (www.kingthingsfonts.co.uk) .
+     */
+    public static String BUTTON_TYPEFACE_PATH = "fonts/KingClarity_1_1.ttf";
 
 
     @Override
@@ -219,6 +225,15 @@ public class MainActivity extends FragmentActivity
         initMap();
         initPano();
         //initPlace();
+
+        //Set the fonts for the buttons
+        try {
+            Typeface buttonTypeface = Typeface.createFromAsset(this.getAssets(), BUTTON_TYPEFACE_PATH);
+            searchButton.setTypeface(buttonTypeface);
+            parkButton.setTypeface(buttonTypeface);
+        }catch (Exception e){
+            e.printStackTrace();
+        }
 
         //Listeners
         searchButton.setOnClickListener(new View.OnClickListener() {
