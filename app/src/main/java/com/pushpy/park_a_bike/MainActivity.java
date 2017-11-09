@@ -1,6 +1,7 @@
 package com.pushpy.park_a_bike;
 
 import android.Manifest;
+import android.app.Activity;
 import android.app.Fragment;
 import android.app.FragmentManager;
 import android.content.Context;
@@ -76,7 +77,7 @@ import java.util.Map;
  * This is the development branch of the app Park-a-Bike
  * Log calls and debugging options/echos are available
  */
-public class MainActivity extends FragmentActivity
+public class MainActivity extends Activity
         implements
         OnMapReadyCallback
         ,BackStage.OnDatabaseClientReady
@@ -1129,10 +1130,7 @@ public class MainActivity extends FragmentActivity
 
                 try {
                     results = dbMapper.scan(BikeParking.class, expression);
-                    for (BikeParking bp : results) {
-                        parkingList.add(bp);
-                    }
-
+                    parkingList.addAll(results);
                 } catch (AmazonServiceException e){
                     Toast.makeText(MainActivity.this, "We have problem talking to amazon", Toast.LENGTH_SHORT).show();
                 } catch (AmazonClientException e) {
