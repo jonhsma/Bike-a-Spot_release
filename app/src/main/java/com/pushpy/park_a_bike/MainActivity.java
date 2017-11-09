@@ -247,9 +247,10 @@ public class MainActivity extends Activity
                     boolean saveSuccess;
                     if(state==3) {
                         saveSuccess = parkedBikeManager.saveLocation(parkedBikeMarker.getPosition());
-                    }else{
+                    }else if (lastKnownLocation!=null){
                         saveSuccess = parkedBikeManager.saveLocation(new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude()));
-                    }
+                    }else
+                        saveSuccess=false;
                     if(saveSuccess) {
                         //Save the location
                         parkedLocation = parkedBikeManager.retrieveLocation();
@@ -842,7 +843,7 @@ public class MainActivity extends Activity
                                 mMap.setMyLocationEnabled(true);
 
                                 //Calculate the distance from the last update
-                                double distance = (camPos.latitude - lastKnownLocation.getLatitude()) * (camPos.latitude - lastKnownLocation.getLatitude());
+                                double distance = (camPos.latitude - location.getLatitude()) * (camPos.latitude - location.getLatitude());
                                 distance = distance + (camPos.longitude - lastKnownLocation.getLongitude()) * (camPos.longitude - lastKnownLocation.getLongitude()) * lngFactor * lngFactor;
                                 distance = Math.sqrt(distance);
 
