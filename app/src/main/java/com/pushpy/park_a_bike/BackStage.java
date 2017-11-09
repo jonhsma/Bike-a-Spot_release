@@ -66,7 +66,6 @@ public class BackStage extends Fragment {
         dbMapper        =new DynamoDBMapper(dynamoClient);
 
         setRetainInstance(true);
-        databaseClientReady.onDatabaseClientReady(this);
     }
 
     @Override
@@ -80,6 +79,8 @@ public class BackStage extends Fragment {
             throw new ClassCastException(context.toString()
                     + " must implement GridGenerator.UpdateListener");
         }
+        //Evoke the call back function in Main Activity after MainActivity has been registered as  a listener
+        databaseClientReady.onDatabaseClientReady(this);
     }
 
     public interface OnDatabaseClientReady{
