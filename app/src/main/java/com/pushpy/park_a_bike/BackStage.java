@@ -1,5 +1,6 @@
 package com.pushpy.park_a_bike;
 
+import android.app.Activity;
 import android.app.Fragment;
 import android.content.Context;
 import android.os.Bundle;
@@ -51,10 +52,12 @@ public class BackStage extends Fragment {
 
     //Interface with MainActivity
     public OnDatabaseClientReady databaseClientReady;
+    Context     context;
 
     @Override
     public void onCreate(Bundle SavedInstance){
         super.onCreate(SavedInstance);
+
         // Initialize the Amazon Cognito credentials provider
         credentialsProvider= new CognitoCachingCredentialsProvider(
                 getActivity().getApplicationContext(),
@@ -66,21 +69,37 @@ public class BackStage extends Fragment {
         dbMapper        =new DynamoDBMapper(dynamoClient);
 
         setRetainInstance(true);
+        //Evoke the call back function in Main Activity after MainActivity has been registered as  a listener
+        databaseClientReady.onDatabaseClientReady(this);
     }
 
     @Override
     public void onAttach(Context context){
+        //onAttach for API 23 and up
         super.onAttach(context);
-
         //Capture Main activity and make it a listener of the interface
         if(context instanceof OnDatabaseClientReady){
             databaseClientReady=(OnDatabaseClientReady) context;
+            //This is actually not necessary as super.onAttach(context) would call onAttach(activity)
         }else{
             throw new ClassCastException(context.toString()
-                    + " must implement GridGenerator.UpdateListener");
+                    + " Could not reach main activity");
         }
-        //Evoke the call back function in Main Activity after MainActivity has been registered as  a listener
-        databaseClientReady.onDatabaseClientReady(this);
+    }
+
+    @Override
+    public void onAttach(Activity activity){
+        //onAttach for API 15 and up
+        super.onAttach(activity);
+        //Capture Main activity and make it a listener of the interface
+        if(android.os.Build.VERSION.SDK_INT<23) {
+            if (activity instanceof OnDatabaseClientReady) {
+                databaseClientReady = (OnDatabaseClientReady) activity;
+            } else {
+                throw new ClassCastException(context.toString()
+                        + " Could not reach main activity");
+            }
+        }
     }
 
     public interface OnDatabaseClientReady{
